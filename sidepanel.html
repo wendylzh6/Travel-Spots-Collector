@@ -3,16 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>YouTube Digest</title>
+    <title>Travel Spots Collector</title>
     <link rel="stylesheet" href="sidepanel.css" />
   </head>
   <body>
     <!-- HEADER -->
-    <!-- Note: the panel's own "YouTube Digest" title is shown by Chrome's side-panel
-         title bar, so we don't repeat a logo here. -->
     <div class="header">
       <div class="header-top">
-        <!-- Video info -->
         <div class="video-info" id="videoInfo" style="display: none">
           <div class="video-title" id="videoTitle"></div>
           <div class="video-channel" id="videoChannel"></div>
@@ -21,8 +18,8 @@
           class="settings-btn"
           id="settingsBtn"
           type="button"
-          title="Open YouTube Digest settings"
-          aria-label="Open YouTube Digest settings"
+          title="Open Settings"
+          aria-label="Open Settings"
         >
           Settings
         </button>
@@ -30,21 +27,24 @@
 
       <!-- Tab navigation -->
       <div class="tabs" id="tabsNav" style="display: none">
-        <button class="tab active" data-tab="transcript">Transcript</button>
-        <button class="tab" data-tab="overview">Overview</button>
+        <button class="tab active" data-tab="spots">Spots</button>
+        <button class="tab" data-tab="route">Route</button>
         <button class="tab" data-tab="notes">Notes</button>
       </div>
     </div>
 
     <!-- MAIN CONTENT -->
     <div class="content" id="contentArea">
+
       <!-- WELCOME STATE -->
       <div id="welcomeState" class="welcome-container">
-        <div class="welcome-icon">&#9655;</div>
-        <div class="welcome-title">Ready to Digest</div>
+        <div class="welcome-icon">&#128205;</div>
+        <div class="welcome-title">Travel Spots Collector</div>
         <div class="welcome-desc">
-          Navigate to a YouTube video and click the extension icon to get an
-          AI-powered digest.
+          Open a YouTube travel video and click the
+          <strong>Spots</strong> button below the video — or press
+          the extension icon — to detect all the restaurants, cafés,
+          and attractions visited.
         </div>
       </div>
 
@@ -54,7 +54,7 @@
           <div class="loading-bar"></div>
           <div class="loading-text" id="loadingText">Fetching transcript</div>
           <div class="loading-subtext" id="loadingSubtext">
-            Extracting captions from video...
+            Getting video captions...
           </div>
         </div>
       </div>
@@ -64,100 +64,42 @@
         <div class="error-container">
           <div class="error-icon">&#9888;</div>
           <div class="error-title" id="errorTitle">Error</div>
-          <div class="error-message" id="errorMessage">
-            Something went wrong.
-          </div>
+          <div class="error-message" id="errorMessage">Something went wrong.</div>
           <button class="error-btn" id="errorBtn">Try Again</button>
         </div>
       </div>
 
       <!-- RESULTS -->
       <div id="resultsState" style="display: none">
-        <!-- TAB: Transcript (default - no LLM required) -->
-        <div class="tab-panel active" data-panel="transcript">
-          <div class="section">
-            <div class="section-header transcript-section-header">
-              <div class="transcript-header-main">
-                <div class="section-title-wrap">
-                  <div class="section-title">Full Transcript</div>
-                </div>
-                <div
-                  class="transcript-mode-control"
-                  id="transcriptModeControl"
-                  role="group"
-                  aria-label="Transcript language"
-                >
-                  <button
-                    class="transcript-mode-btn active"
-                    type="button"
-                    data-transcript-mode="original"
-                    aria-pressed="true"
-                  >Original</button>
-                  <button
-                    class="transcript-mode-btn"
-                    type="button"
-                    data-transcript-mode="zh"
-                    aria-pressed="false"
-                  >中文</button>
-                  <button
-                    class="transcript-mode-btn"
-                    type="button"
-                    data-transcript-mode="bilingual"
-                    aria-pressed="false"
-                  >双语</button>
-                  <span
-                    class="translation-spinner"
-                    id="langSpinner"
-                    aria-label="Translating"
-                  ></span>
-                </div>
-              </div>
-              <div class="transcript-actions">
-                <button class="enhance-btn" id="copyTranscriptBtn">Copy</button>
-                <button class="enhance-btn" id="exportTranscriptBtn">
-                  Export
-                </button>
-              </div>
+
+        <!-- TAB: Spots -->
+        <div class="tab-panel active" data-panel="spots">
+          <!-- Places section -->
+          <div class="section" id="placesSection">
+            <div class="section-header">
+              <div class="section-title" id="placesTitle">Places</div>
+              <button class="export-all-btn enhance-btn" id="exportSpotsBtn" style="display:none">Export list</button>
             </div>
-            <div id="transcriptList"></div>
+            <div id="spotsList"></div>
+          </div>
+
+          <!-- Hotels section — shown only when hotels exist -->
+          <div class="section" id="hotelsSection" style="display:none">
+            <div class="section-header">
+              <div class="section-title">Hotels</div>
+            </div>
+            <div id="hotelsList"></div>
           </div>
         </div>
 
-        <!-- TAB: Overview (chapters + key quotes) - requires LLM -->
-        <div class="tab-panel" data-panel="overview">
-          <!-- Chapters -->
+        <!-- TAB: Route -->
+        <div class="tab-panel" data-panel="route">
           <div class="section">
-            <div class="section-title">Chapters</div>
-            <ul class="chapter-list" id="chapterList">
-              <li
-                class="chapter-item"
-                style="
-                  color: var(--text-muted);
-                  cursor: default;
-                  border-color: var(--border);
-                "
-              >
-                Chapters will appear here
-              </li>
-            </ul>
-          </div>
-
-          <!-- Key Quotes -->
-          <div class="section">
-            <div class="section-title">Key Quotes</div>
-            <div id="quotesList">
-              <div
-                class="quote-item"
-                style="
-                  color: var(--text-muted);
-                  border-left-color: var(--border);
-                  cursor: default;
-                "
-              >
-                <div class="quote-text" style="font-style: normal">
-                  Quotes will be extracted when you view this tab...
-                </div>
-              </div>
+            <div class="section-header">
+              <div class="section-title">Suggested Route</div>
+            </div>
+            <div id="routeContent">
+              <p class="spots-empty-text">No suggested route detected in this video.</p>
             </div>
           </div>
         </div>
@@ -166,43 +108,26 @@
         <div class="tab-panel" data-panel="notes">
           <div class="section">
             <div class="section-header">
-              <div class="section-title">Saved Notes</div>
+              <div class="section-title">My Notes</div>
               <div class="notes-filter">
-                <button
-                  class="enhance-btn active"
-                  id="notesFilterThis"
-                  aria-pressed="true"
-                >
+                <button class="enhance-btn active" id="notesFilterThis" aria-pressed="true">
                   This Video
                 </button>
-                <button
-                  class="enhance-btn"
-                  id="notesFilterAll"
-                  aria-pressed="false"
-                >
+                <button class="enhance-btn" id="notesFilterAll" aria-pressed="false">
                   All Notes
                 </button>
               </div>
             </div>
             <p class="notes-intro" id="notesIntro">
-              Move your mouse over the video and click the 📝 Note button to
-              save timestamped notes, or press the "n" key while the video is
-              focused.
+              Hover over the video and click <strong>📍 Note</strong>, or press
+              <kbd>N</kbd> while the video is focused, to save a timestamped note.
             </p>
             <div id="notesList"></div>
           </div>
         </div>
-      </div>
-    </div>
 
-    <!-- Auto-scroll follow button — appears when user scrolls away from playback position -->
-    <button
-      class="follow-playback-btn"
-      id="followPlaybackBtn"
-      style="display: none"
-    >
-      Follow playback
-    </button>
+      </div><!-- /resultsState -->
+    </div><!-- /content -->
 
     <script src="settings.js"></script>
     <script src="sidepanel.js"></script>

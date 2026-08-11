@@ -1,16 +1,10 @@
 /**
- * CONTENT SCRIPT
+ * CONTENT SCRIPT — Travel Spots Collector
  *
- * This script runs ON the YouTube page itself. It can see and modify
- * the YouTube page DOM (the HTML elements).
- *
- * It handles:
+ * Runs on the YouTube page. Handles:
  * 1. Extracting video info (title, channel name) from the page
- * 2. Injecting "key moment" markers onto YouTube's progress bar
- * 3. Adding a "Digest" button to YouTube's action bar (next to Share/Save)
- *
- * Think of it like a robot sitting inside the YouTube tab,
- * reading the page and making small visual changes.
+ * 2. Adding a "Spots" button to YouTube's action bar (next to Share/Save)
+ * 3. Injecting a "Note" overlay button on the video player
  */
 
 const DEBUG = false;
@@ -122,12 +116,12 @@ if (document.readyState === "loading") {
  * When they send key moments, we highlight them on the progress bar.
  */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  debugLog("[YouTube Digest Content] Received message:", message.action, message);
+  debugLog("[TSC Content] Received message:", message.action, message);
 
   if (message.action === "getVideoInfo") {
     // Read video title and channel name from the page
     const info = extractVideoInfo();
-    debugLog("[YouTube Digest Content] Returning video info:", info);
+    debugLog("[TSC Content] Returning video info:", info);
     sendResponse(info);
     return false; // Synchronous response
   }
@@ -150,7 +144,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === "seekTo") {
     // Jump the video to a specific timestamp
-    debugLog("[YouTube Digest Content] Seeking to:", message.seconds);
+    debugLog("[TSC Content] Seeking to:", message.seconds);
     seekToTimestamp(message.seconds);
     sendResponse({ success: true });
     return false;
@@ -164,7 +158,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   // Unknown action - still send a response to prevent hanging
-  debugLog("[YouTube Digest Content] Unknown action:", message.action);
+  debugLog("[TSC Content] Unknown action:", message.action);
   sendResponse({ success: false, error: "Unknown action" });
   return false;
 });
@@ -231,10 +225,10 @@ function createDigestButton() {
   const digestButton = document.createElement("button");
   digestButton.id = "ytd-digest-button";
   digestButton.type = "button";
-  digestButton.setAttribute("aria-label", "Open YouTube Digest");
+  digestButton.setAttribute("aria-label", "Open Travel Spots Collector");
   digestButton.innerHTML = `
-    <span class="ytd-digest-icon" style="font-size: 11px;">▶</span>
-    <span class="ytd-digest-label">Digest</span>
+    <span class="ytd-digest-icon" style="font-size: 13px;">📍</span>
+    <span class="ytd-digest-label">Spots</span>
   `;
 
   // Style the button — rounded pill in our terracotta accent, sized to sit
@@ -280,16 +274,16 @@ function createDigestButton() {
     e.preventDefault();
     e.stopPropagation();
 
-    debugLog("[YouTube Digest] Digest button clicked");
+    debugLog("[TSC] Digest button clicked");
 
     // Send message to background script to open side panel
     try {
       const result = await chrome.runtime.sendMessage({
         action: "openSidePanel",
       });
-      debugLog("[YouTube Digest] openSidePanel response:", result);
+      debugLog("[TSC] openSidePanel response:", result);
     } catch (err) {
-      console.error("[YouTube Digest] Failed to open side panel:", err);
+      console.error("[TSC] Failed to open side panel:", err);
     }
   });
 
@@ -315,7 +309,7 @@ function injectDigestButton() {
 
   const actionsContainer = findDigestButtonHost();
   if (!actionsContainer) {
-    debugLog("[YouTube Digest Content] Visible actions container not found yet");
+    debugLog("[TSC Content] Visible actions container not found yet");
     return false;
   }
 
@@ -341,7 +335,7 @@ function injectDigestButton() {
     actionsContainer.insertBefore(digestButton, actionsContainer.firstChild);
   }
 
-  debugLog("[YouTube Digest Content] Digest button reconciled");
+  debugLog("[TSC Content] Digest button reconciled");
   return true;
 }
 
@@ -436,16 +430,13 @@ function injectNoteButton() {
     playerContainer.style.position = "relative";
   }
 
-  debugLog("[YouTube Digest Content] Injecting note button");
+  debugLog("[TSC Content] Injecting note button");
 
   // Create the note button — a soft rounded pill that floats over the player
   const noteButton = document.createElement("button");
   noteButton.id = "ytd-note-button";
   noteButton.innerHTML = `
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="margin-right: 7px;">
-      <path d="M12 20h9"></path>
-      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-    </svg>
+    <span style="margin-right: 5px; font-size: 13px;">📍</span>
     <span>Note</span>
   `;
 
@@ -516,7 +507,7 @@ function injectNoteButton() {
 
   playerContainer.appendChild(noteButton);
 
-  debugLog("[YouTube Digest Content] Note button injected");
+  debugLog("[TSC Content] Note button injected");
 }
 
 function showNoteButton() {
@@ -572,11 +563,11 @@ function handleNoteKeyboardShortcut(e) {
  * Captures the current timestamp and saves it as a note.
  */
 async function saveCurrentNote() {
-  debugLog("[YouTube Digest] Saving note");
+  debugLog("[TSC] Saving note");
 
   const video = document.querySelector("video.html5-main-video");
   if (!video) {
-    console.error("[YouTube Digest] No video element found");
+    console.error("[TSC] No video element found");
     return;
   }
 
@@ -615,14 +606,14 @@ async function saveCurrentNote() {
         noteButton.innerHTML =
           '<span style="letter-spacing: 0.2px;">ERROR</span>';
       }
-      console.error("[YouTube Digest] Save note error:", result.error);
+      console.error("[TSC] Save note error:", result.error);
     }
   } catch (err) {
     if (noteButton) {
       noteButton.innerHTML =
         '<span style="letter-spacing: 0.2px;">ERROR</span>';
     }
-    console.error("[YouTube Digest] Save note exception:", err);
+    console.error("[TSC] Save note exception:", err);
   }
 
   setTimeout(() => {
@@ -645,7 +636,7 @@ function showNoteSavedToast(note) {
   const toast = document.createElement("div");
   toast.id = "ytd-note-toast";
   toast.innerHTML = `
-    <div style="font-weight: 700; margin-bottom: 6px; color: #c8674f;">📝 Note saved</div>
+    <div style="font-weight: 700; margin-bottom: 6px; color: #c8674f;">📍 Note saved</div>
     <div style="font-size: 12px; color: #6b6258; margin-bottom: 8px;">${escapeHtmlForContent(note.timestamp)} — ${escapeHtmlForContent(note.videoTitle)}</div>
     <div style="font-size: 13px; line-height: 1.55; color: #2e2a24;">"${escapeHtmlForContent(note.text)}"</div>
     <div style="margin-top: 10px; font-size: 11px;">
@@ -772,11 +763,11 @@ function highlightKeyMoments(moments, videoDuration) {
 function seekToTimestamp(seconds) {
   const video = document.querySelector("video.html5-main-video");
   if (!video) {
-    console.error("[YouTube Digest Content] No video element found for seek");
+    console.error("[TSC Content] No video element found for seek");
     return;
   }
 
-  debugLog("[YouTube Digest Content] Seeking to:", seconds);
+  debugLog("[TSC Content] Seeking to:", seconds);
   video.currentTime = seconds;
   // Also play the video if it's paused
   if (video.paused) {
