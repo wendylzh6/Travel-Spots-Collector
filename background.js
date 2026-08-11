@@ -591,45 +591,54 @@ async function handleSaveNote(videoId, timestamp, videoTitle, channelName) {
 
     if (!transcript) {
       const transcriptResult = await handleFetchTranscript(videoId);
-      if (!transcriptResult.success) return { success: false, error: "Could not fetch transcript" };
-      transcript = transcriptResult.transcript;
-    }
-
-    // Find transcript line near this timestamp for note text
-    let matchedLine = null;
-    let beforeLine  = null;
-    let afterLine   = null;
-    let contextLines = [];
-
-    for (let i = 0; i < transcript.length; i++) {
-      const line = transcript[i];
-      if (line.start <= safeTimestamp && (!transcript[i + 1] || transcript[i + 1].start > safeTimestamp)) {
-        matchedLine = line;
-
-        const beforeLines = [];
-        for (let j = 1; j <= 2 && i - j >= 0; j++) beforeLines.unshift(transcript[i - j].text);
-        if (beforeLines.length) beforeLine = beforeLines.join(" ");
-
-        const afterLines = [];
-        for (let j = 1; j <= 4 && i + j < transcript.length; j++) afterLines.push(transcript[i + j].text);
-        if (afterLines.length) afterLine = afterLines.join(" ");
-
-        const startIdx = Math.max(0, i - 8);
-        const endIdx   = Math.min(transcript.length - 1, i + 12);
-        for (let j = startIdx; j <= endIdx; j++) contextLines.push(transcript[j].text);
-        break;
+      // If no transcript is available (no captions, no key, etc.) save a
+      // minimal timestamp-only note rather than failing completely.
+      if (transcriptResult.success) {
+        transcript = transcriptResult.transcript;
       }
     }
 
-    if (!matchedLine) {
-      matchedLine = transcript[transcript.length - 1];
-      const startIdx = Math.max(0, transcript.length - 9);
-      for (let j = startIdx; j < transcript.length; j++) contextLines.push(transcript[j].text);
+    // Find transcript line near this timestamp for note text
+    let matchedLine  = null;
+    let beforeLine   = null;
+    let afterLine    = null;
+    let contextLines = [];
+
+    if (transcript && transcript.length > 0) {
+      for (let i = 0; i < transcript.length; i++) {
+        const line = transcript[i];
+        if (line.start <= safeTimestamp && (!transcript[i + 1] || transcript[i + 1].start > safeTimestamp)) {
+          matchedLine = line;
+
+          const beforeLines = [];
+          for (let j = 1; j <= 2 && i - j >= 0; j++) beforeLines.unshift(transcript[i - j].text);
+          if (beforeLines.length) beforeLine = beforeLines.join(" ");
+
+          const afterLines = [];
+          for (let j = 1; j <= 4 && i + j < transcript.length; j++) afterLines.push(transcript[i + j].text);
+          if (afterLines.length) afterLine = afterLines.join(" ");
+
+          const startIdx = Math.max(0, i - 8);
+          const endIdx   = Math.min(transcript.length - 1, i + 12);
+          for (let j = startIdx; j <= endIdx; j++) contextLines.push(transcript[j].text);
+          break;
+        }
+      }
+
+      if (!matchedLine) {
+        matchedLine = transcript[transcript.length - 1];
+        const startIdx = Math.max(0, transcript.length - 9);
+        for (let j = startIdx; j < transcript.length; j++) contextLines.push(transcript[j].text);
+      }
     }
 
-    const cleanedText = await cleanupNoteText(
-      matchedLine.text, beforeLine, afterLine, contextLines.join(" "), videoTitle,
-    );
+    // If we have transcript context, try to clean up the note text with AI.
+    // If not, save a plain timestamp marker so the note still lands.
+    const cleanedText = matchedLine
+      ? await cleanupNoteText(
+          matchedLine.text, beforeLine, afterLine, contextLines.join(" "), videoTitle,
+        )
+      : `📍 Marked at ${Math.floor(safeTimestamp / 60)}:${String(safeTimestamp % 60).padStart(2, "0")}`;
 
     const minutes             = Math.floor(safeTimestamp / 60);
     const seconds             = safeTimestamp % 60;
