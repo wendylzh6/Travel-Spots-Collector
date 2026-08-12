@@ -232,6 +232,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       message.transcriptText,
       message.videoTitle,
       message.channelName,
+      message.videoDescription,
     )
       .then(sendResponse)
       .catch((err) => sendResponse({ error: err.message }));
@@ -499,7 +500,7 @@ function parseLooseJson(text) {
 // SPOT EXTRACTION (DeepSeek)
 // ============================================================
 
-async function handleExtractSpots(transcriptText, videoTitle, channelName) {
+async function handleExtractSpots(transcriptText, videoTitle, channelName, videoDescription) {
   try {
     const settings = await getSettings();
     if (!settings.aiApiKey) {
@@ -507,9 +508,10 @@ async function handleExtractSpots(transcriptText, videoTitle, channelName) {
     }
 
     const variables = {
-      videoTitle:    videoTitle    || "Unknown",
-      channelName:   channelName   || "Unknown",
-      transcriptText: transcriptText || "",
+      videoTitle:       videoTitle       || "Unknown",
+      channelName:      channelName      || "Unknown",
+      transcriptText:   transcriptText   || "",
+      videoDescription: videoDescription || "",
     };
 
     const systemPrompt = await loadPromptSection("travel.md", "System prompt", variables);

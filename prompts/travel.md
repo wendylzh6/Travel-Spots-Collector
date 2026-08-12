@@ -67,12 +67,23 @@ To get the timestamp for a place, find the line where it is FIRST named and conv
 [2:30] = 150 seconds. [0:45] = 45 seconds. If you genuinely cannot find it, use 0.
 
 ────────────────────────────────────────
+VIDEO DESCRIPTION (Option A — description parsing):
+The video description often lists every place shown in the video, especially when the creator uses on-screen text overlays. Parse the description for:
+1. YouTube chapter lines — format `M:SS Place Name` or `MM:SS Place Name` (e.g. `6:48 GOKAGA Tea House`). Convert the timestamp to seconds and use it as `timestamp_seconds`.
+2. Numbered or bulleted place lists (e.g. `1. Tsukiji Market`, `• Ichiran Ramen`).
+3. Sections labelled "Places in this video", "Spots", "Restaurants", "Where I stayed", etc.
+4. Address lines immediately following a place name — these confirm the place is real and named.
+
+For any place found in the description, if it also appears in the transcript use the transcript timestamp. If only in the description, use the chapter-line timestamp if available, otherwise use 0.
+
+────────────────────────────────────────
 IMPORTANT RULES:
 - Only include places that have a SPECIFIC NAME. Skip vague mentions like "a ramen shop nearby" or "some café".
-- Do not invent or hallucinate places not mentioned in the transcript.
+- Do not invent or hallucinate places not mentioned in the transcript or description.
 - Include a place even if the creator only briefly mentions it as a recommendation.
 - Keep "note" fields short: one sentence, no fluff.
-- If the same place is mentioned multiple times, include it only ONCE with the first timestamp.
+- If the same place is mentioned multiple times, include it only ONCE with the earliest timestamp.
+- Merge duplicates: if a place appears in both the transcript and description, return it once.
 ```
 
 ## User prompt
@@ -84,5 +95,8 @@ Channel: {channelName}
 Transcript:
 {transcriptText}
 
-Extract all named travel spots (restaurants, cafés, bars, attractions, etc.), any suggested route order, and any hotel recommendations. Return valid JSON only, no markdown.
+Video description:
+{videoDescription}
+
+Extract all named travel spots (restaurants, cafés, bars, attractions, etc.), any suggested route order, and any hotel recommendations from BOTH the transcript and the video description. Return valid JSON only, no markdown.
 ```

@@ -266,6 +266,7 @@ async function startDigest(videoId, videoUrl) {
     transcriptText: transcriptResult.transcriptTextTimestamped,
     videoTitle: currentVideoTitle,
     channelName: currentChannelName,
+    videoDescription: currentVideoDescription,
   });
 
   if (!spotsResult.success) {
