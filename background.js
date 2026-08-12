@@ -364,17 +364,27 @@ async function getPlayerVideoDetails(tabId) {
 }
 
 // ============================================================
-// TRANSCRIPT FETCHING (Supadata)
+// TRANSCRIPT FETCHING (YouTube built-in → Supadata fallback)
 // ============================================================
 
 async function handleFetchTranscript(videoId) {
+  // 1. Try YouTube's own built-in captions first — free, no API key needed
+  debugLog("[TSC] Trying YouTube built-in captions…");
+  const ytResult = await fetchYouTubeCaptions(videoId);
+  if (ytResult.success) {
+    debugLog("[TSC] YouTube built-in captions succeeded");
+    return ytResult;
+  }
+  debugLog("[TSC] YouTube captions unavailable:", ytResult.error, "— trying Supadata");
+
+  // 2. Fall back to Supadata
   try {
     const settings = await getSettings();
     if (!settings.supadataApiKey) {
       return {
         success: false,
-        error: "NO_SUPADATA_KEY",
-        message: "Supadata API key not configured. Open Settings.",
+        error: "NO_TRANSCRIPT",
+        message: "No captions found on YouTube for this video. Add a Supadata key in Settings to enable a fallback.",
       };
     }
 
@@ -408,14 +418,111 @@ async function handleFetchTranscript(videoId) {
     }
 
     const data = await response.json();
-    return parseTranscriptData(data);
+    return parseSupadataTranscript(data);
   } catch (error) {
     console.error("Transcript fetch error:", error);
     return { success: false, error: error.message || "Failed to fetch transcript" };
   }
 }
 
-function parseTranscriptData(data) {
+// ──────────────────────────────────────────────────────────────
+// YouTube built-in captions
+// ──────────────────────────────────────────────────────────────
+
+async function fetchYouTubeCaptions(videoId) {
+  try {
+    const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      headers: { "Accept-Language": "en-US,en;q=0.9" },
+    });
+    if (!response.ok) throw new Error(`YouTube page fetch failed: ${response.status}`);
+
+    const html = await response.text();
+
+    // Find the captionTracks array inside ytInitialPlayerResponse
+    const marker = '"captionTracks":';
+    const markerIdx = html.indexOf(marker);
+    if (markerIdx === -1) {
+      return { success: false, error: "NO_CAPTIONS", message: "This video has no captions." };
+    }
+
+    const arrayStart = html.indexOf("[", markerIdx + marker.length);
+    if (arrayStart === -1) throw new Error("Malformed captionTracks data");
+
+    // Balance brackets to extract the full array
+    let depth = 0;
+    let arrayEnd = arrayStart;
+    for (let i = arrayStart; i < html.length; i++) {
+      const ch = html[i];
+      if (ch === "[" || ch === "{") depth++;
+      else if (ch === "]" || ch === "}") {
+        depth--;
+        if (depth === 0) { arrayEnd = i; break; }
+      }
+    }
+
+    const captionTracks = JSON.parse(html.slice(arrayStart, arrayEnd + 1));
+    if (!captionTracks.length) {
+      return { success: false, error: "NO_CAPTIONS", message: "This video has no captions." };
+    }
+
+    // Prefer manual English → auto-generated English → any track
+    const track =
+      captionTracks.find(t => t.languageCode === "en" && !t.kind) ||
+      captionTracks.find(t => t.languageCode === "en") ||
+      captionTracks[0];
+
+    const captionUrl = track.baseUrl + "&fmt=json3";
+    const capResponse = await fetch(captionUrl);
+    if (!capResponse.ok) throw new Error(`Caption fetch failed: ${capResponse.status}`);
+
+    const capData = await capResponse.json();
+    return parseYouTubeCaptionsJson3(capData, track.languageCode);
+  } catch (error) {
+    debugLog("[TSC] YouTube captions error:", error.message);
+    return { success: false, error: "YOUTUBE_CAPTIONS_FAILED", message: error.message };
+  }
+}
+
+function parseYouTubeCaptionsJson3(data, languageCode) {
+  const transcript = [];
+  let transcriptTextPlain = "";
+  let transcriptTextTimestamped = "";
+
+  for (const event of (data.events || [])) {
+    if (!event.segs) continue;
+    const text = event.segs.map(s => s.utf8 || "").join("").replace(/\n/g, " ").trim();
+    if (!text) continue;
+
+    const startSeconds = Math.floor((event.tStartMs || 0) / 1000);
+    const minutes = Math.floor(startSeconds / 60);
+    const seconds = startSeconds % 60;
+    const timestamp = `${minutes}:${String(seconds).padStart(2, "0")}`;
+
+    transcript.push({
+      text,
+      start:    startSeconds,
+      duration: Math.floor((event.dDurationMs || 0) / 1000),
+      language: languageCode || null,
+    });
+    transcriptTextPlain       += text + " ";
+    transcriptTextTimestamped += `[${timestamp}] ${text}\n`;
+  }
+
+  if (transcript.length === 0) {
+    return { success: false, error: "EMPTY_CAPTIONS", message: "YouTube captions are empty for this video." };
+  }
+
+  return {
+    success:                  true,
+    source:                   "youtube",
+    transcript,
+    transcriptText:            transcriptTextPlain.trim(),
+    transcriptTextTimestamped: transcriptTextTimestamped.trim(),
+    language:                  languageCode || null,
+  };
+}
+
+function parseSupadataTranscript(data) {
   const transcript = [];
   let transcriptTextPlain       = "";
   let transcriptTextTimestamped = "";
@@ -469,7 +576,7 @@ async function pollTranscriptJob(jobId, supadataApiKey) {
     if (!response.ok) throw new Error(`Job polling failed: ${response.status}`);
 
     const data = await response.json();
-    if (data.status === "completed") return parseTranscriptData(data);
+    if (data.status === "completed") return parseSupadataTranscript(data);
     if (data.status === "failed")    throw new Error("Transcript processing failed");
   }
   throw new Error("Transcript processing timed out");
