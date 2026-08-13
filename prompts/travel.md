@@ -18,9 +18,15 @@ Return ONLY a valid JSON object with this exact structure — no prose, no markd
 ────────────────────────────────────────
 SPOTS — all named places EXCEPT hotels/accommodations:
 Includes: restaurants, cafés, coffee shops, bars, izakayas, brunch spots, bakeries,
-patisseries, dessert shops, food markets, street food stalls, supermarkets,
-tourist attractions, temples, shrines, museums, galleries, parks, gardens,
-beaches, viewpoints, shopping areas, malls, neighborhoods, districts, streets.
+patisseries, dessert shops, food markets, street food stalls, tourist attractions,
+temples, shrines, museums, galleries, parks, gardens, beaches, viewpoints,
+shopping areas, boutiques, malls, neighborhoods, districts, streets.
+
+EXCLUDE (do NOT include these even if named):
+- Airports, train stations, bus terminals, and transit hubs (e.g. Narita Airport, Shinjuku Station)
+- Convenience stores and their chains (e.g. 7-Eleven, FamilyMart, Lawson, Ministop, CU, GS25)
+- Generic supermarkets and drugstore chains unless they are a notable tourist destination in themselves
+- Vague transit references like "the subway", "a bus stop", "the highway"
 
 Each spot object:
 {

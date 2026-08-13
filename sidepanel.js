@@ -359,9 +359,9 @@ function createSpotCard(spot, notedMap = {}) {
       <a class="spot-maps-btn" href="${mapsUrl(spot)}" target="_blank" rel="noopener">
         Open in Maps
       </a>
-      <button class="spot-note-btn${isNoted ? " noted" : ""}" title="${isNoted ? "Remove note" : "Save as note"}"
+      <button class="spot-note-btn${isNoted ? " noted" : ""}" title="${isNoted ? "Remove from collection" : "Add to collection"}"
         data-note-id="${isNoted ? escapeHtml(noteId) : ""}">
-        ${isNoted ? "✓ Noted" : "📍 Note"}
+        ${isNoted ? "✓ Marked" : "📍 Mark"}
       </button>
     </div>
   `;
@@ -386,11 +386,11 @@ function createSpotCard(spot, notedMap = {}) {
       try {
         await chrome.runtime.sendMessage({ action: "deleteNote", noteId: btn.dataset.noteId });
         btn.classList.remove("noted");
-        btn.textContent = "📍 Note";
-        btn.title = "Save as note";
+        btn.textContent = "📍 Mark";
+        btn.title = "Add to collection";
         btn.dataset.noteId = "";
         loadNotes(currentVideoId);
-      } catch { btn.textContent = "Error"; setTimeout(() => { btn.textContent = "✓ Noted"; }, 1500); }
+      } catch { btn.textContent = "Error"; setTimeout(() => { btn.textContent = "✓ Marked"; }, 1500); }
     } else {
       // Save the note
       btn.textContent = "Saving…";
@@ -405,15 +405,15 @@ function createSpotCard(spot, notedMap = {}) {
         });
         if (result.success) {
           btn.classList.add("noted");
-          btn.textContent = "✓ Noted";
-          btn.title = "Remove note";
+          btn.textContent = "✓ Marked";
+          btn.title = "Remove from collection";
           btn.dataset.noteId = result.note.id;
           loadNotes(currentVideoId);
         } else {
           btn.textContent = "Error";
-          setTimeout(() => { btn.textContent = "📍 Note"; }, 1500);
+          setTimeout(() => { btn.textContent = "📍 Mark"; }, 1500);
         }
-      } catch { btn.textContent = "Error"; setTimeout(() => { btn.textContent = "📍 Note"; }, 1500); }
+      } catch { btn.textContent = "Error"; setTimeout(() => { btn.textContent = "📍 Mark"; }, 1500); }
     }
 
     btn.disabled = false;
@@ -636,8 +636,8 @@ function renderNotes(notes, filteredVideoId) {
   if (!notes || notes.length === 0) {
     notesIntro.style.display = "block";
     notesIntro.innerHTML = filteredVideoId
-      ? "No notes for this video yet. Hover over the video and click <strong>📍 Note</strong> to save."
-      : "No notes saved yet. Hover over a video and click <strong>📍 Note</strong> to save.";
+      ? "No marked spots for this video yet. Click <strong>📍 Mark</strong> on any spot to add it to your collection."
+      : "No marked spots yet. Click <strong>📍 Mark</strong> on any spot to add it to your collection.";
     return;
   }
 
