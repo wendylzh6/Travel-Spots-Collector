@@ -333,6 +333,16 @@ body {
   background: var(--sage-dim);
 }
 .spot-note-btn:disabled { opacity: 0.6; cursor: default; }
+.spot-note-btn.noted {
+  background: var(--sage-dim);
+  border-color: var(--sage);
+  color: var(--sage);
+}
+.spot-note-btn.noted:hover:not(:disabled) {
+  background: #fce8e4;
+  border-color: var(--accent);
+  color: var(--accent);
+}
 
 /* ============================================================
    EMPTY / NO-SPOTS STATE

@@ -334,13 +334,16 @@ function mapsUrl(spot) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
-function createSpotCard(spot) {
+function createSpotCard(spot, notedMap = {}) {
   const meta = categoryMeta(spot.category);
   const hasLocal = spot.local_name && spot.local_name !== spot.name;
   const hasTimestamp = spot.timestamp_seconds > 0;
 
   const card = document.createElement("div");
   card.className = "spot-card";
+
+  const isNoted  = notedMap && spot.name in notedMap;
+  const noteId   = isNoted ? notedMap[spot.name] : null;
 
   card.innerHTML = `
     <div class="spot-card-top">
@@ -356,7 +359,10 @@ function createSpotCard(spot) {
       <a class="spot-maps-btn" href="${mapsUrl(spot)}" target="_blank" rel="noopener">
         Open in Maps
       </a>
-      <button class="spot-note-btn" title="Save as note">📍 Note</button>
+      <button class="spot-note-btn${isNoted ? " noted" : ""}" title="${isNoted ? "Remove note" : "Save as note"}"
+        data-note-id="${isNoted ? escapeHtml(noteId) : ""}">
+        ${isNoted ? "✓ Noted" : "📍 Note"}
+      </button>
     </div>
   `;
 
@@ -366,30 +372,57 @@ function createSpotCard(spot) {
     seekTo(Number(e.currentTarget.dataset.seconds));
   });
 
-  // Save as manual note at this timestamp
+  // Toggle note: save if not noted, delete if already noted
   card.querySelector(".spot-note-btn")?.addEventListener("click", async (e) => {
     e.stopPropagation();
     const btn = e.currentTarget;
-    btn.textContent = "Saving…";
+    const alreadyNoted = btn.classList.contains("noted");
+
     btn.disabled = true;
-    try {
-      const result = await chrome.runtime.sendMessage({
-        action: "saveNote",
-        videoId: currentVideoId,
-        timestamp: spot.timestamp_seconds || 0,
-        videoTitle: currentVideoTitle,
-        channelName: currentChannelName,
-      });
-      btn.textContent = result.success ? "✓ Saved" : "Error";
-      if (result.success) loadNotes(currentVideoId);
-    } catch { btn.textContent = "Error"; }
-    setTimeout(() => { btn.textContent = "📍 Note"; btn.disabled = false; }, 1800);
+
+    if (alreadyNoted) {
+      // Delete the note
+      btn.textContent = "Removing…";
+      try {
+        await chrome.runtime.sendMessage({ action: "deleteNote", noteId: btn.dataset.noteId });
+        btn.classList.remove("noted");
+        btn.textContent = "📍 Note";
+        btn.title = "Save as note";
+        btn.dataset.noteId = "";
+        loadNotes(currentVideoId);
+      } catch { btn.textContent = "Error"; setTimeout(() => { btn.textContent = "✓ Noted"; }, 1500); }
+    } else {
+      // Save the note
+      btn.textContent = "Saving…";
+      try {
+        const result = await chrome.runtime.sendMessage({
+          action: "saveNote",
+          videoId: currentVideoId,
+          timestamp: spot.timestamp_seconds || 0,
+          videoTitle: currentVideoTitle,
+          channelName: currentChannelName,
+          spotName: spot.name,
+        });
+        if (result.success) {
+          btn.classList.add("noted");
+          btn.textContent = "✓ Noted";
+          btn.title = "Remove note";
+          btn.dataset.noteId = result.note.id;
+          loadNotes(currentVideoId);
+        } else {
+          btn.textContent = "Error";
+          setTimeout(() => { btn.textContent = "📍 Note"; }, 1500);
+        }
+      } catch { btn.textContent = "Error"; setTimeout(() => { btn.textContent = "📍 Note"; }, 1500); }
+    }
+
+    btn.disabled = false;
   });
 
   return card;
 }
 
-function renderSpots() {
+async function renderSpots() {
   const spotsList  = document.getElementById("spotsList");
   const hotelsList = document.getElementById("hotelsList");
   const hotelsSection = document.getElementById("hotelsSection");
@@ -398,6 +431,9 @@ function renderSpots() {
   if (!spotsList) return;
 
   spotsList.innerHTML = "";
+
+  // Build a map of spotName → noteId for spots already noted on this video
+  const notedMap = await buildNotedMap(currentVideoId);
 
   const spots = currentSpots || [];
 
@@ -411,7 +447,7 @@ function renderSpots() {
     placesTitle.textContent = "Places";
   } else {
     placesTitle.textContent = `Places (${spots.length})`;
-    spots.forEach((spot) => spotsList.appendChild(createSpotCard(spot)));
+    spots.forEach((spot) => spotsList.appendChild(createSpotCard(spot, notedMap)));
     if (exportBtn) exportBtn.style.display = "";
   }
 
@@ -419,11 +455,24 @@ function renderSpots() {
   const hotels = currentHotels || [];
   if (hotels.length > 0) {
     hotelsList.innerHTML = "";
-    hotels.forEach((h) => hotelsList.appendChild(createSpotCard({ ...h, category: "hotel" })));
+    hotels.forEach((h) => hotelsList.appendChild(createSpotCard({ ...h, category: "hotel" }, notedMap)));
     hotelsSection.style.display = "";
   } else {
     hotelsSection.style.display = "none";
   }
+}
+
+async function buildNotedMap(videoId) {
+  try {
+    const result = await chrome.runtime.sendMessage({ action: "getNotes", videoId });
+    const map = {};
+    if (result.success) {
+      for (const note of result.notes) {
+        if (note.spotName) map[note.spotName] = note.id;
+      }
+    }
+    return map;
+  } catch { return {}; }
 }
 
 // ============================================================

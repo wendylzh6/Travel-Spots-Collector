@@ -240,7 +240,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.action === "saveNote") {
-    handleSaveNote(message.videoId, message.timestamp, message.videoTitle, message.channelName)
+    handleSaveNote(message.videoId, message.timestamp, message.videoTitle, message.channelName, message.spotName)
       .then(sendResponse)
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
@@ -684,7 +684,7 @@ async function handleExtractSpots(transcriptText, videoTitle, channelName, video
 // NOTE MANAGEMENT
 // ============================================================
 
-async function handleSaveNote(videoId, timestamp, videoTitle, channelName) {
+async function handleSaveNote(videoId, timestamp, videoTitle, channelName, spotName) {
   try {
     const canonicalVideoUrl = YTD_SETTINGS.canonicalYouTubeUrl(videoId);
     const safeTimestamp     = Math.max(0, Math.floor(Number(timestamp) || 0));
@@ -759,11 +759,12 @@ async function handleSaveNote(videoId, timestamp, videoTitle, channelName) {
       videoId,
       videoTitle:       typeof videoTitle   === "string" ? videoTitle.slice(0, 500)   : "Untitled Video",
       channelName:      typeof channelName  === "string" ? channelName.slice(0, 300)  : "",
+      spotName:         typeof spotName     === "string" ? spotName.slice(0, 300)     : null,
       timestamp:        formattedTimestamp,
       timestampSeconds: safeTimestamp,
       timestampedUrl,
       text:             cleanedText,
-      rawText:          matchedLine.text,
+      rawText:          matchedLine?.text || cleanedText,
       createdAt:        Date.now(),
     };
 
