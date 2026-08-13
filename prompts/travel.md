@@ -83,6 +83,14 @@ The video description often lists every place shown in the video, especially whe
 For any place found in the description, if it also appears in the transcript use the transcript timestamp. If only in the description, use the chapter-line timestamp if available, otherwise use 0.
 
 ────────────────────────────────────────
+NEIGHBORHOOD vs. VENUE — critical distinction:
+A neighborhood or district (e.g. Dotonbori, Shinjuku, Myeongdong) is NOT a substitute for a specific restaurant, café, or attraction inside it. Follow these rules:
+- If the creator says "we're in Dotonbori" and then visits a specific ramen restaurant, list BOTH: the restaurant as "restaurant" AND Dotonbori as "neighborhood" with its own timestamp.
+- NEVER assign a neighborhood's timestamp to a restaurant or vice versa.
+- If a specific venue is shown or mentioned inside a neighborhood, always categorize it by its actual type (restaurant, cafe, attraction, etc.) — never as "neighborhood".
+- Use "neighborhood" only for areas/districts that the creator references as a place to explore broadly, not as a container for a specific meal or stop.
+
+────────────────────────────────────────
 IMPORTANT RULES:
 - Only include places that have a SPECIFIC NAME. Skip vague mentions like "a ramen shop nearby" or "some café".
 - Do not invent or hallucinate places not mentioned in the transcript or description.
@@ -90,6 +98,7 @@ IMPORTANT RULES:
 - Keep "note" fields short: one sentence, no fluff.
 - If the same place is mentioned multiple times, include it only ONCE with the earliest timestamp.
 - Merge duplicates: if a place appears in both the transcript and description, return it once.
+- When the transcript mentions a neighborhood and the description lists a specific venue at the same timestamp, trust the description's venue name and category over the transcript's neighborhood reference.
 ```
 
 ## User prompt
