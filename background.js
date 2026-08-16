@@ -708,7 +708,8 @@ async function handleSaveNote(videoId, timestamp, videoTitle, channelName, spotN
     const canonicalVideoUrl = YTD_SETTINGS.canonicalYouTubeUrl(videoId);
     const safeTimestamp     = Math.max(0, Math.floor(Number(timestamp) || 0));
 
-    // Try to get transcript from cache (needed for note text context)
+    // Only use cached transcript for note context — never fetch fresh here,
+    // as fetching is slow and note saving must be instant.
     let transcript = null;
     try {
       const cached = await chrome.storage.local.get(`digest_${videoId}`);
@@ -716,15 +717,6 @@ async function handleSaveNote(videoId, timestamp, videoTitle, channelName, spotN
         transcript = cached[`digest_${videoId}`].transcript;
       }
     } catch {}
-
-    if (!transcript) {
-      const transcriptResult = await handleFetchTranscript(videoId);
-      // If no transcript is available (no captions, no key, etc.) save a
-      // minimal timestamp-only note rather than failing completely.
-      if (transcriptResult.success) {
-        transcript = transcriptResult.transcript;
-      }
-    }
 
     // Find transcript line near this timestamp for note text
     let matchedLine  = null;
