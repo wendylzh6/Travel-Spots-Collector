@@ -480,8 +480,27 @@ async function fetchYouTubeCaptions(videoId) {
     }
 
     const captionTracks = JSON.parse(html.slice(arrayStart, arrayEnd + 1));
+
+    // Also extract the full description from ytInitialPlayerResponse
+    // (DOM description is often truncated; this is always the complete text)
+    let fullDescription = "";
+    try {
+      const descMarker = '"shortDescription":"';
+      const descStart  = html.indexOf(descMarker);
+      if (descStart !== -1) {
+        const valueStart = descStart + descMarker.length;
+        // JSON-encoded string: scan for unescaped closing quote
+        let descEnd = valueStart;
+        while (descEnd < html.length) {
+          if (html[descEnd] === '"' && html[descEnd - 1] !== "\\") break;
+          descEnd++;
+        }
+        fullDescription = JSON.parse(`"${html.slice(valueStart, descEnd)}"`);
+      }
+    } catch { /* non-fatal — proceed without description */ }
+
     if (!captionTracks.length) {
-      return { success: false, error: "NO_CAPTIONS", message: "This video has no captions." };
+      return { success: false, error: "NO_CAPTIONS", message: "This video has no captions.", fullDescription };
     }
 
     // Prefer manual English → auto-generated English → any track
@@ -495,7 +514,9 @@ async function fetchYouTubeCaptions(videoId) {
     if (!capResponse.ok) throw new Error(`Caption fetch failed: ${capResponse.status}`);
 
     const capData = await capResponse.json();
-    return parseYouTubeCaptionsJson3(capData, track.languageCode);
+    const result = parseYouTubeCaptionsJson3(capData, track.languageCode);
+    if (result.success) result.fullDescription = fullDescription;
+    return result;
   } catch (error) {
     debugLog("[TSC] YouTube captions error:", error.message);
     return { success: false, error: "YOUTUBE_CAPTIONS_FAILED", message: error.message };

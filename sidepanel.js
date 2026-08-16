@@ -261,12 +261,16 @@ async function startDigest(videoId, videoUrl) {
 
   updateLoading("Detecting spots", "Finding restaurants, cafés, and attractions…");
 
+  // Prefer the full description extracted from ytInitialPlayerResponse (never truncated)
+  // over the DOM version which YouTube collapses for long descriptions.
+  const descriptionToUse = transcriptResult.fullDescription || currentVideoDescription;
+
   const spotsResult = await chrome.runtime.sendMessage({
     action: "extractSpots",
     transcriptText: transcriptResult.transcriptTextTimestamped,
     videoTitle: currentVideoTitle,
     channelName: currentChannelName,
-    videoDescription: currentVideoDescription,
+    videoDescription: descriptionToUse,
   });
 
   if (!spotsResult.success) {
