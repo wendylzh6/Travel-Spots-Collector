@@ -761,17 +761,23 @@ function highlightKeyMoments(moments, videoDuration) {
  * which is the standard HTML5 way to seek in a video.
  */
 function seekToTimestamp(seconds) {
-  const video = document.querySelector("video.html5-main-video");
-  if (!video) {
-    console.error("[TSC Content] No video element found for seek");
+  debugLog("[TSC Content] Seeking to:", seconds);
+
+  // Use YouTube's own player API — most reliable, properly syncs state and progress bar
+  const player = document.getElementById("movie_player");
+  if (player && typeof player.seekTo === "function") {
+    player.seekTo(seconds, true);
+    player.playVideo();
     return;
   }
 
-  debugLog("[TSC Content] Seeking to:", seconds);
-  video.currentTime = seconds;
-  // Also play the video if it's paused
-  if (video.paused) {
-    video.play().catch(() => {}); // Ignore autoplay errors
+  // Fallback: set HTML5 video currentTime directly
+  const video = document.querySelector("video.html5-main-video");
+  if (video) {
+    video.currentTime = seconds;
+    video.play().catch(() => {});
+  } else {
+    console.error("[TSC Content] No player or video element found for seek");
   }
 }
 

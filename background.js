@@ -220,6 +220,25 @@ chrome.tabs.onActivated.addListener(async ({ tabId }) => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
+  if (message.action === "seekInYouTube") {
+    (async () => {
+      try {
+        // Find any YouTube tab — don't rely on active/focused window
+        let tabs = await chrome.tabs.query({ url: "https://www.youtube.com/watch*" });
+        if (!tabs.length) tabs = await chrome.tabs.query({ url: "https://www.youtube.com/*" });
+        if (tabs.length) {
+          await chrome.tabs.sendMessage(tabs[0].id, { action: "seekTo", seconds: message.seconds });
+          sendResponse({ success: true });
+        } else {
+          sendResponse({ success: false, error: "No YouTube tab found" });
+        }
+      } catch (err) {
+        sendResponse({ success: false, error: err.message });
+      }
+    })();
+    return true;
+  }
+
   if (message.action === "fetchTranscript") {
     handleFetchTranscript(message.videoId)
       .then(sendResponse)

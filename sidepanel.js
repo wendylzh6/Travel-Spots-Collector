@@ -603,11 +603,18 @@ function showConfigError(configStatus) {
 
 async function seekTo(seconds) {
   const payload = { action: "seekTo", seconds: Number(seconds) };
-  try {
-    if (youtubeTabId) {
-      try { await chrome.tabs.sendMessage(youtubeTabId, payload); return; } catch (_) {}
+  // Always try the stored tab ID directly first — most reliable path
+  if (youtubeTabId) {
+    try {
+      await chrome.tabs.sendMessage(youtubeTabId, payload);
+      return;
+    } catch (_) {
+      // Tab may have navigated; fall through to relay
     }
-    await chrome.runtime.sendMessage({ action: "relayToContent", payload });
+  }
+  // Relay: background finds the YouTube tab regardless of focus state
+  try {
+    await chrome.runtime.sendMessage({ action: "seekInYouTube", seconds: Number(seconds) });
   } catch (error) {
     console.error("seekTo error:", error);
   }
